@@ -1,0 +1,92 @@
+{
+  "scope": "offline extraction; not database counts",
+  "nodes": {
+    "Drug": 3828,
+    "Food": 4870,
+    "Check": 3353,
+    "Department": 54,
+    "Producer": 17201,
+    "Symptom": 5998,
+    "Disease": 8807
+  },
+  "disease_property_records": 8808,
+  "relationship_groups": [
+    {
+      "start": "Disease",
+      "type": "need_check",
+      "end": "Check",
+      "candidate_unique_edges": 39418,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "recommand_eat",
+      "end": "Food",
+      "candidate_unique_edges": 40221,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "no_eat",
+      "end": "Food",
+      "candidate_unique_edges": 22239,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "do_eat",
+      "end": "Food",
+      "candidate_unique_edges": 22230,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Department",
+      "type": "belongs_to",
+      "end": "Department",
+      "candidate_unique_edges": 37,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "command_drug",
+      "end": "Drug",
+      "candidate_unique_edges": 14647,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Producer",
+      "type": "drugs_of",
+      "end": "Drug",
+      "candidate_unique_edges": 17315,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "recommand_drug",
+      "end": "Drug",
+      "candidate_unique_edges": 59465,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "has_symptom",
+      "end": "Symptom",
+      "candidate_unique_edges": 54710,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "acompany_with",
+      "end": "Disease",
+      "candidate_unique_edges": 12024,
+      "edges_with_missing_endpoint": 0
+    },
+    {
+      "start": "Disease",
+      "type": "belongs_to",
+      "end": "Department",
+      "candidate_unique_edges": 8806,
+      "edges_with_missing_endpoint": 0
+    }
+  ]
+}

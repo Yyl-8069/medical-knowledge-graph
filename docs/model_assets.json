@@ -1,0 +1,30 @@
+{
+  "source_root": "E:\\vscode\\project3\\red_spider\\v2.0",
+  "assets": [
+    {
+      "source_file": "bert/bert_pretrain/pytorch_model.bin",
+      "target_file": "versions/v2.0/bert/bert_pretrain/pytorch_model.bin",
+      "bytes": 411578458,
+      "sha256": "b5eddb3a1a77b6359b1acf63bb508513fa31b7ab612d1c11666c76c0470c14c4"
+    },
+    {
+      "source_file": "bert/save_path/bert.pt",
+      "target_file": "versions/v2.0/bert/save_path/bert.pt",
+      "bytes": 409148217,
+      "sha256": "bf3857edc42292cfec5386ad66e74917f960c7a242428562633cba32de026772"
+    },
+    {
+      "source_file": "bert/save_path/bert_19.onnx",
+      "target_file": "versions/v2.0/bert/save_path/bert_19.onnx",
+      "bytes": 409357761,
+      "sha256": "40c561b02dedbcc54f8a41f6e6a8abe4b4924b8a7ff9430a5a1c0a521020c56a"
+    },
+    {
+      "source_file": "bert/save_path/bert_19.pt",
+      "target_file": "versions/v2.0/bert/save_path/bert_19.pt",
+      "bytes": 409207200,
+      "sha256": "fa06dc83b771abde353503aa743c2ce1d61d192a16eb7ee0d87fd655a22df0f0"
+    }
+  ],
+  "included_in_source_archive": false
+}

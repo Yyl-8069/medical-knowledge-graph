@@ -1,0 +1,24 @@
+test_classification_and_parameterized_queries (test_project.ProjectTests) ... ok
+test_data_and_dictionaries_unchanged (test_project.ProjectTests) ... ok
+test_graph_import_parameters_and_merge (test_project.ProjectTests) ... ok
+test_missing_password (test_project.ProjectTests) ... ok
+test_search_handles_multiple_types_and_empty_queries (test_project.ProjectTests) ... ok
+test_asset_restore_prevents_overwrite_and_escape (test_versions.VersionTests) ... ok
+test_v11_extended_queries_and_parameters (test_versions.VersionTests) ... ok
+test_v11_importer_schema_and_parameter_values (test_versions.VersionTests) ... ok
+test_v20_intent_routing_without_model_inference (test_versions.VersionTests) ... ok
+test_version_data_and_training_labels (test_versions.VersionTests) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 2.312s
+
+OK
+model init finished ......
+Disease: 1
+Drug: 1
+Food: 1
+Symptom: 1
+recommand_eat: 1
+recommand_drug: 1
+has_symptom: 1
+Restored: models\model.pt

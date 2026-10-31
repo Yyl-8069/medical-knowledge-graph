@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+.neo4j/
+output/
+*.zip
+
+# Large local model assets; restore with versions/v2.0/prepare_model_assets.py
+*.pt
+*.onnx
+*.bin
+*.safetensors

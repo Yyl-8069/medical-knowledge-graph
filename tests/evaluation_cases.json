@@ -1,0 +1,85 @@
+[
+  {
+    "id": "symptom-01",
+    "question": "感冒有什么症状",
+    "expected_types": [
+      "disease_symptom"
+    ]
+  },
+  {
+    "id": "symptom-02",
+    "question": "肺炎有什么表现",
+    "expected_types": [
+      "disease_symptom"
+    ]
+  },
+  {
+    "id": "symptom-03",
+    "question": "糖尿病有什么症状",
+    "expected_types": [
+      "disease_symptom"
+    ]
+  },
+  {
+    "id": "food-01",
+    "question": "感冒吃什么",
+    "expected_types": [
+      "disease_food"
+    ]
+  },
+  {
+    "id": "food-02",
+    "question": "胃炎吃什么",
+    "expected_types": [
+      "disease_food"
+    ]
+  },
+  {
+    "id": "food-03",
+    "question": "高血压吃什么",
+    "expected_types": [
+      "disease_food"
+    ]
+  },
+  {
+    "id": "drug-01",
+    "question": "感冒用什么药",
+    "expected_types": [
+      "disease_drug"
+    ]
+  },
+  {
+    "id": "drug-02",
+    "question": "肺炎用什么药",
+    "expected_types": [
+      "disease_drug"
+    ]
+  },
+  {
+    "id": "drug-03",
+    "question": "胃炎用什么药",
+    "expected_types": [
+      "disease_drug"
+    ]
+  },
+  {
+    "id": "multi-01",
+    "question": "感冒有什么症状，用什么药",
+    "expected_types": [
+      "disease_symptom",
+      "disease_drug"
+    ]
+  },
+  {
+    "id": "unknown-01",
+    "question": "你好",
+    "expected_types": []
+  },
+  {
+    "id": "paraphrase-01",
+    "question": "感冒适合哪些食物",
+    "expected_types": [
+      "disease_food"
+    ]
+  }
+]

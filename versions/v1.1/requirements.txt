@@ -1,0 +1,5 @@
+neo4j==5.28.2
+pyahocorasick==2.1.0
+Flask==3.0.3
+requests==2.32.3
+openai==1.82.1

@@ -1,0 +1,9 @@
+model init finished......
+感冒不能吃什么 => ['disease_not_food']
+[{"question_type": "disease_not_food", "sql": [{"query": "MATCH (m:Disease)-[r:no_eat]->(n:Food) where m.name = $name                 return m.name, r.name, n.name", "parameters": {"name": "感冒"}}]}]
+感冒的原因是什么 => ['disease_cause']
+[{"question_type": "disease_cause", "sql": [{"query": "MATCH (m:Disease) where m.name = $name return m.name, m.cause", "parameters": {"name": "感冒"}}]}]
+感冒属于什么科 => ['disease_belong']
+[{"question_type": "disease_belong", "sql": [{"query": "MATCH (m:Disease)-[r:belongs_to]->(n:Department) WHERE m.name=$name RETURN m.name, r.name, n.name", "parameters": {"name": "感冒"}}]}]
+咳嗽 => ['symptom_disease']
+[{"question_type": "symptom_disease", "sql": [{"query": "MATCH (m:Disease)-[r:has_symptom]->(n:Symptom) where n.name = $name                 return m.name, r.name, n.name", "parameters": {"name": "咳嗽"}}]}]

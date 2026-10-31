@@ -1,0 +1,14 @@
+{
+  "records": 8808,
+  "nodes": {
+    "Disease": 8807,
+    "Symptom": 5998,
+    "Food": 4506,
+    "Drug": 3800
+  },
+  "relationships": {
+    "has_symptom": 54710,
+    "recommand_eat": 40221,
+    "recommand_drug": 59465
+  }
+}

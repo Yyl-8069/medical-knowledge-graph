@@ -1,0 +1,18 @@
+test_classification_and_parameterized_queries (test_project.ProjectTests) ... ok
+test_data_and_dictionaries_unchanged (test_project.ProjectTests) ... ok
+test_graph_import_parameters_and_merge (test_project.ProjectTests) ... ok
+test_missing_password (test_project.ProjectTests) ... ok
+test_search_handles_multiple_types_and_empty_queries (test_project.ProjectTests) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.958s
+
+OK
+model init finished ......
+Disease: 1
+Drug: 1
+Food: 1
+Symptom: 1
+recommand_eat: 1
+recommand_drug: 1
+has_symptom: 1

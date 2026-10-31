@@ -1,0 +1,66 @@
+{
+  "source": "E:\\vscode\\project3\\red_spider\\v1.0",
+  "files": [
+    {
+      "file": "build_medicalgraph.py",
+      "source_sha256": "d8e874232d609a59e41dc241d79a5515cf2288c9d4fabd34948b26aa1f209d4a",
+      "bytes": 5224,
+      "project_file": "red_spider/build_medicalgraph.py"
+    },
+    {
+      "file": "question_classifier.py",
+      "source_sha256": "5b1885c5882a02b320a331b1f933edaff44f253502c630960a656b9a0cf5d1fb",
+      "bytes": 5477,
+      "project_file": "red_spider/question_classifier.py"
+    },
+    {
+      "file": "question_parser.py",
+      "source_sha256": "ae23bc57891cd073bf98c283c504d3eaa574c0db936de0a473063611b0df3a45",
+      "bytes": 2414,
+      "project_file": "red_spider/question_parser.py"
+    },
+    {
+      "file": "answer_search.py",
+      "source_sha256": "9b14dfe326f24221bc152184e479a13bd36ccbab4b6541f3744058dd15de793b",
+      "bytes": 2199,
+      "project_file": "red_spider/answer_search.py"
+    },
+    {
+      "file": "chatbot.py",
+      "source_sha256": "c1777e35d8dc7841b58b51204c048b0645dfc484e7f1bc8397dc2004ec9fea38",
+      "bytes": 1788,
+      "project_file": "red_spider/chatbot.py"
+    },
+    {
+      "file": "data/medical.json",
+      "source_sha256": "268f8e824df0ca49e6dcd98c95babf1db04fef0b89b9483854bb637586d1e49d",
+      "bytes": 47138917,
+      "project_file": "red_spider/data/medical.json"
+    },
+    {
+      "file": "dict/disease.txt",
+      "source_sha256": "b59fc9f32844561eade7c20c068f5782d6766a9deea45ad0183f455c31b61baf",
+      "bytes": 177532,
+      "project_file": "red_spider/dict/disease.txt"
+    },
+    {
+      "file": "dict/drug.txt",
+      "source_sha256": "bc89d81a327d58372a1494055c6bbac36a98fb6b7092db85ee983e58c46fbcce",
+      "bytes": 74645,
+      "project_file": "red_spider/dict/drug.txt"
+    },
+    {
+      "file": "dict/food.txt",
+      "source_sha256": "817dd58b0d7cd992bceb0a174dfa53c7da77a6db40373924bf5f1deb97d5ef6c",
+      "bytes": 75048,
+      "project_file": "red_spider/dict/food.txt"
+    },
+    {
+      "file": "dict/symptom.txt",
+      "source_sha256": "66eb94570c23c2234e290fcb7532c070c370fa55313d5881b1c7ee3ec36f1c7b",
+      "bytes": 99565,
+      "project_file": "red_spider/dict/symptom.txt"
+    }
+  ],
+  "layout": "代码在 red_spider/，数据和词典分别位于 red_spider/data/ 与 red_spider/dict/。"
+}
