@@ -1,0 +1,8 @@
+{
+  "mode": "plan_only",
+  "cypher": "MATCH (d:Disease {name:$name})-[r:command_drug|recommand_drug]->(n:Drug) RETURN DISTINCT d.name AS disease, type(r) AS relation, n.name AS drug ORDER BY relation, drug LIMIT $limit",
+  "parameters": {
+    "limit": 20,
+    "name": "感冒"
+  }
+}

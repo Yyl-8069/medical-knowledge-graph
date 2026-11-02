@@ -1,4 +1,0 @@
-disease_drug
-disease_food
-disease_symptom
-disease_cureway

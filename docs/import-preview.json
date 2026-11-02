@@ -1,0 +1,80 @@
+{
+  "mode": "preview_only",
+  "nodes": {
+    "Drug": 3828,
+    "Food": 4870,
+    "Check": 3353,
+    "Department": 54,
+    "Producer": 17201,
+    "Symptom": 5998,
+    "Disease": 8807
+  },
+  "relations": [
+    {
+      "start": "Disease",
+      "relation": "need_check",
+      "end": "Check",
+      "unique_candidates": 39418
+    },
+    {
+      "start": "Disease",
+      "relation": "recommand_eat",
+      "end": "Food",
+      "unique_candidates": 40221
+    },
+    {
+      "start": "Disease",
+      "relation": "no_eat",
+      "end": "Food",
+      "unique_candidates": 22239
+    },
+    {
+      "start": "Disease",
+      "relation": "do_eat",
+      "end": "Food",
+      "unique_candidates": 22230
+    },
+    {
+      "start": "Department",
+      "relation": "belongs_to",
+      "end": "Department",
+      "unique_candidates": 37
+    },
+    {
+      "start": "Disease",
+      "relation": "command_drug",
+      "end": "Drug",
+      "unique_candidates": 14647
+    },
+    {
+      "start": "Producer",
+      "relation": "drugs_of",
+      "end": "Drug",
+      "unique_candidates": 17315
+    },
+    {
+      "start": "Disease",
+      "relation": "recommand_drug",
+      "end": "Drug",
+      "unique_candidates": 59465
+    },
+    {
+      "start": "Disease",
+      "relation": "has_symptom",
+      "end": "Symptom",
+      "unique_candidates": 54710
+    },
+    {
+      "start": "Disease",
+      "relation": "acompany_with",
+      "end": "Disease",
+      "unique_candidates": 12024
+    },
+    {
+      "start": "Disease",
+      "relation": "belongs_to",
+      "end": "Department",
+      "unique_candidates": 8806
+    }
+  ]
+}

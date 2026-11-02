@@ -1,260 +1,215 @@
-# Red Spider · 医疗知识图谱问答系统
+# 青囊 · 医疗知识图谱
 
-**基于 Python、Neo4j 与 Aho–Corasick 多模式匹配，将疾病、症状、食物和药品组织为可查询的知识图谱，并通过自然语言完成结构化信息检索。**
-
-项目打通“数据解析 → 图谱构建 → 实体识别 → 问题分类 → Cypher 查询 → 模板回答”流程。仓库整理了 v1.0 基础规则版、v1.1 扩展图谱与规则版、v2.0 BERT 分类与服务化版本；下文默认启动和基线数据统计对应 v1.0，后续版本有独立代码、数据说明和启动入口。
-
-**数据规模：8,808 条记录 · 23,111 个去重实体 · 154,396 条去重关系**  
-该规模对应 v1.0 的本地源数据统计；v1.1 扩展图谱离线抽取得到 44,111 个实体、291,112 条候选关系，详见[分版统计](docs/version_data_statistics.json)。数据库实测计数尚未核验。
-
-[项目背景](#项目背景) · [系统架构](#系统架构) · [技术栈](#技术栈) · [核心功能](#核心功能) · [测试与评估](#测试与评估) · [运行效果与快速启动](#运行效果与快速启动) · [已知限制](#已知限制)
+**检索增强版 1.1.0：基于 Python 与 Neo4j 的医疗数据建模、批量导入和结构化查询项目。**
 
 ## 项目背景
 
-医疗信息中，疾病与症状、饮食和药品之间存在大量关联。直接查阅结构化数据文件时，需要理解字段、定位记录并手动组合信息；将这些关系建模为图谱后，可以通过统一的查询路径检索相关实体。
+医疗数据中的疾病、症状、药品、检查、食物、科室及生产商分散在不同字段中。本项目将这些实体与关系写入 Neo4j，提供可检查的参数化查询和图谱展示，方便追踪每条结果的关系来源。
 
-本项目面向疾病相关知识查询，解决两个具体问题：一是将逐行 JSON 数据转成具有唯一实体标识和明确关系的 Neo4j 图谱；二是将中文问句转换成限定范围的图查询，让使用者通过“感冒有什么症状”等自然语言获取数据中已有的信息。
-
-实现重点包括可追踪的数据处理、明确的模块边界、参数化查询、可重复执行的数据导入和可复现的离线验证。系统返回知识库信息，不承担诊断或处方决策。
-
-## 功能版本演进
-
-| 版本 | 主要变化 | 代码与运行说明 | 验证状态 |
-| --- | --- | --- | --- |
-| v1.0 | 四类实体、三类关系、规则分类与 CLI | 本 README、`red_spider/` | 基础离线测试与 12 条固定问句集 |
-| v1.1 | 七类实体和疾病属性，扩展饮食、检查、并发症、科室与反查；Flask、可选生成回退 | [v1.1 说明](versions/v1.1/README.md) | 扩展规则与查询路由离线验证；数据库/API 未联调 |
-| v2.0 | BERT 四/十九分类、训练与评估数据、ONNX 导出、Flask/FastAPI | [v2.0 说明](versions/v2.0/README.md) | 数据格式及标签校验、mock 意图路由；模型推理与服务待验收 |
-
-两组 BERT 数据共 59,000 条切分记录；大型权重有来源清单和本地恢复脚本。[完整版本演进与验收边界](docs/version-history.md)保留各阶段的工程变化。各版独立启动；v2.0 使用 v1.1 的扩展建图入口。
+查询链路：选择查询类型和实体名称 → 生成 Cypher 与参数 → 访问 Neo4j → 输出原始记录。支持可选的一次性检索增强回答：先检索 Neo4j，再将问题及检索记录交给配置的模型 API。查询类型与实体由命令参数明确指定，不让模型生成或执行 Cypher；没有多轮聊天、本地答案回退或 Agent 循环。JSON 仅用于构图。
 
 ## 系统架构
 
 ```mermaid
-flowchart TB
-    subgraph Build[数据构建]
-        Data[medical.json · JSON Lines] --> Builder["build_medicalgraph.py<br/>解析、去重、分批导入"]
-        Builder -->|唯一约束 + UNWIND + MERGE| Graph[(Neo4j)]
-    end
-    subgraph Query[在线查询]
-        User[用户输入] --> CLI["chatbot.py<br/>命令行编排"]
-        Dict[四类实体词典] --> Classifier["question_classifier.py<br/>AC 自动机 + 规则分类"]
-        CLI --> Classifier
-        Classifier --> Parser["question_parser.py<br/>查询模板 + 参数"]
-        Parser --> Search["answer_search.py<br/>执行查询、整理回答"]
-        Search --> Graph
-        Graph --> Search
-        Search --> Answer[模板化回答 / 未命中提示]
-        Answer --> CLI
-    end
-    Config[环境变量配置] -.-> Builder
-    Config -.-> Search
+flowchart LR
+    A[medical.json 原始数据] --> B[解析实体、属性、去重关系]
+    B --> C[默认预览统计]
+    B --> D[显式执行导入]
+    D --> E[Neo4j 七类实体及十一组关系]
+    F[查询类型和实体名称] --> G[白名单 Cypher 与参数]
+    G --> E
+    E --> H[原始结果 JSON]
+    E --> I[Neo4j Browser 关系图]
+    H --> J[可选模型 API 整理答案]
+    J --> K[答案及完整检索依据]
 ```
-
-建图与问答分别通过独立入口执行。分类器负责识别实体和查询意图，解析器负责生成查询计划，搜索器负责数据库访问和结果整理，便于独立排查各阶段问题。
 
 ## 技术栈
 
-| 层次 | 技术 / 版本 | 项目中的用途 |
-| --- | --- | --- |
-| 编程语言 | Python，本次实测 3.8.5 | 数据处理、分类、查询和命令行入口 |
-| 图数据库 | Neo4j 5.x，实际服务集成待验证 | 存储实体关系；脚本使用 5.x 唯一约束语法 |
-| 数据库驱动 | `neo4j==5.28.2` | Bolt 连接、会话和 Cypher 执行 |
-| 实体匹配 | `pyahocorasick==2.1.0` | AC 自动机多模式词典匹配 |
-| 数据格式 | JSON Lines、UTF-8 文本词典 | 医疗记录、领域实体词表 |
-| 验证 | `unittest`、`unittest.mock`、固定问句集 | 单元测试与离线查询意图评估 |
-| 配置管理 | 系统环境变量 | 分离数据库配置和源码 |
-| 后续模型分支 | PyTorch 2.4.1、Transformers 4.46.3 | BERT 训练与分类代码；真实模型效果尚未验收 |
-| 后续导出分支 | ONNX 导出代码、ONNXRuntime 1.19.2 | 导出实验与已有模型资产；未接入默认问答推理 |
-| 后续服务分支 | Flask 3.0.3、FastAPI 0.116.1、Uvicorn 0.33.0 | HTTP 表单接口代码；服务联调尚未完成 |
-| 可选生成回退 | OpenAI Python SDK 1.82.1 | 兼容 DeepSeek 调用，默认关闭；未实际调用 |
+| 技术 | 用途 |
+| --- | --- |
+| Python | JSON Lines 解析、命令行入口、数据校验 |
+| Neo4j 5.x | 属性图存储和 Cypher 查询 |
+| neo4j Python Driver 5.28.2 | 参数化查询、连接及事务会话 |
+| unittest | 数据完整性、查询参数、导入行为验证 |
 
-## 核心功能
+## 图谱结构与核心功能
 
-### 1. 医疗知识图谱构建
+- 原始数据：8,808 条记录，对应 8,807 个不同疾病名称。
+- 完整扩展数据可解析出 44,111 个不同实体，291,112 条去重候选边；这是离线数据统计，不是当前数据库实测计数。
+- 7 类节点：Disease、Symptom、Drug、Food、Check、Department、Producer。
+- 11 组关系（10 个不同关系类型）：疾病—检查、疾病—推荐食物、疾病—忌食、疾病—宜食、科室—上级科室、疾病—常用药品、生产商—药品、疾病—推荐药品、疾病—症状、疾病—伴随疾病、疾病—科室。两组科室关系共用 belongs_to。
+- 疾病节点保留简介、病因、预防、治疗方式等已有属性。
+- 数据导入使用唯一约束、MERGE 和分批写入；先检查已有同名重复节点。
+- 结构化查询支持节点/关系统计、邻居、疾病药品、症状、检查、饮食、科室、症状反查疾病和药品生产商。
 
-读取 `red_spider/data/medical.json`，抽取四类实体和三类关系。节点按名称合并，关系在写入前按起点、终点去重，使用 `UNWIND` 将关系每 1,000 条分批写入。
+## 安装与配置
 
-| 实体 | 数量 | 关系 | 去重关系数 |
-| --- | ---: | --- | ---: |
-| Disease / 疾病 | 8,807 | Disease → Symptom：`has_symptom` | 54,710 |
-| Symptom / 症状 | 5,998 | Disease → Food：`recommand_eat` | 40,221 |
-| Food / 食物 | 4,506 | Disease → Drug：`recommand_drug` | 59,465 |
-| Drug / 药品 | 3,800 | 合计 | 154,396 |
+以下命令在项目根目录的 PowerShell 执行：
 
-节点和关系数量来自源数据去重统计。源文件共 8,808 条记录、8,807 个不同疾病名；保留重复记录，构图时合并。关系名称保留现有拼写，以保持查询兼容。
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:NEO4J_URI = 'bolt://localhost:7687'
+$env:NEO4J_USER = 'neo4j'
+$neo4jPassword = Read-Host 'Neo4j 密码' -AsSecureString
+$env:NEO4J_PASSWORD = [System.Net.NetworkCredential]::new('', $neo4jPassword).Password
+$env:NEO4J_DATABASE = 'neo4j'
+```
 
-### 2. 实体识别与问题分类
+数据库名称应与自己的实例一致；未设置时使用用户默认库。程序不自动读取 `.env`。仅预览数据或查询计划无需数据库账号。
 
-通过四类词典构建 AC 自动机，在一次匹配过程中查找领域实体；对包含关系的命中词优先保留较长实体，再结合问句特征词识别查询类型。
+## 构图与运行
 
-| 问句示例 | 查询意图 | 目标关系 |
-| --- | --- | --- |
-| 感冒有什么症状 | 疾病症状查询 | `has_symptom` |
-| 感冒吃什么 | 推荐食物查询 | `recommand_eat` |
-| 感冒用什么药 | 推荐药品查询 | `recommand_drug` |
-| 感冒有什么症状，用什么药 | 同一疾病的多意图查询 | 症状 + 药品两组查询 |
+### 1. 预览完整图谱数据
 
-### 3. 参数化查询与结果整理
+```powershell
+python qingnang/build_medicalgraph.py
+```
 
-解析器通过固定模板选择节点标签和关系类型，将疾病名称作为 `$name` 参数传入，避免把用户输入直接拼接到 Cypher 中。搜索器逐个处理查询意图，对结果去重并稳定排序，每类回答最多展示 10 项；未命中时给出查询提示。
+默认不连接数据库，输出实体及关系候选计数。可用 `--data` 指定其他相同结构的 JSON Lines 文件。
 
-### 4. 工程处理与取舍
+### 2. 在专用空库导入
 
-| 实现 | 处理的问题 | 边界 |
-| --- | --- | --- |
-| 唯一约束 + `MERGE` | 重复导入时避免主动追加同名实体和重复关系 | 不自动清理旧库已有重复关系；重复导入尚未实库验证 |
-| 分批写入 + 参数传递 | 控制单批关系写入规模；减少逐条提交 | 整次导入不是一个原子事务，失败后可能部分写入 |
-| 环境变量 + `.gitignore` | 数据库密码与源码分离 | `.env` 不会自动加载 |
-| 基于脚本位置解析路径 | 从其他工作目录启动时仍能读取数据和词典 | 词典需要与数据保持一致 |
-| 模块拆分 + 固定测试入口 | 分类、查询计划、数据库访问可分别排查 | 数据库调用的 mock 测试不能替代集成测试 |
+```powershell
+python qingnang/build_medicalgraph.py --execute
+```
+
+此命令会创建约束、实体、属性和关系。已有重复名称时在写入前停止，不自动删除或合并。应先备份并单独处理旧数据，或使用专用空库验证；当前已知旧库有重复疾病，不要直接依赖重复导入解决。
+
+### 3. 展示查询计划与执行结果
+
+```powershell
+# 不连接数据库：展示即将执行的 Cypher 和参数
+python qingnang/query_graph.py drugs --name 感冒 --plan-only
+
+# 连接数据库：输出同一查询的原始记录
+python qingnang/query_graph.py drugs --name 感冒 --limit 20
+python qingnang/query_graph.py symptoms --name 感冒
+python qingnang/query_graph.py checks --name 感冒
+python qingnang/query_graph.py neighbors --name 感冒
+python qingnang/query_graph.py schema
+python qingnang/query_graph.py relations
+```
+
+输出包含 `cypher`、`parameters`、`source: neo4j`、`returned_count`、`limit` 和 `records`。没有数据时返回空列表。连接或权限错误直接报错，不将其伪装成无结果。
+
+查询药品时同时覆盖 `command_drug` 和 `recommand_drug`，并保留关系类型。`--limit` 允许 1–1000，默认20；返回条数不是匹配结果总数。排序为文本顺序，无医学排序含义。
+
+### 4. 在 Neo4j Browser 展示节点连线
+
+打开自己实例的 Neo4j Browser，执行 [图谱演示语句](docs/demo.cypher)：
+
+```cypher
+MATCH (d:Disease {name: '感冒'})-[r:command_drug|recommand_drug]->(n:Drug)
+RETURN d, r, n LIMIT 30;
+```
+
+切换到 Graph 视图即可查看节点与边。Python 入口展示查询和表格记录，Browser 展示同一条关系路径。完整库结构检查见 [inspect_graph.cypher](docs/inspect_graph.cypher)。
+
+## 真实运行效果
+
+以下截图来自已有 Neo4j 实例的实际只读查询，不代表本版导入已通过验收：
+
+![实际数据库节点计数](docs/screenshots/database-nodes.png)
+
+![实际数据库关系计数](docs/screenshots/database-relations.png)
+
+截图显示当前实例包含6类节点、6组关系，无 Food 节点；有 Producer 节点但没有 drugs_of 边。完整缺失对照见 [版本与数据库状态](docs/version-history.md)。
 
 ## 测试与评估
 
-完整测试现为 **10/10 通过**，其中 v1.0 基线 5 项、后续版本 5 项；模型路由以 mock 意图编号验证，完整结果见 [版本验证记录](docs/version_verification.md)。
-
-### 自动化测试
-
-在仓库根目录执行：
-
 ```powershell
 python -m unittest discover -s tests -v
-python -m compileall -q red_spider versions tests
+python -m compileall -q qingnang tests
 ```
 
-v1.0 基线：**5 项测试通过**，覆盖完整 JSON 解析与数据/词典哈希、三类问句分类和参数查询、多意图及空查询、建图参数和去重、缺少密码时的配置错误。根目录和外部工作目录均已验证；数据库调用使用 mock。
+验证覆盖：原始数据 SHA-256、七类实体计数、两种药品关系查询、参数隔离、非法查询类型/上限拒绝、查询返回记录及连接关闭、默认导入不连接数据库、已有重复节点在写入前拦截。
 
-### 固定问句评估
-
-```powershell
-python tests\evaluate.py
-```
-
-评估脚本使用真实词典、分类器和解析器，按“生成的查询意图集合是否与人工预期完全一致”评分。12 条人工固定冒烟案例包含单意图、多意图、未命中和改写问句，结果为 **11/12（91.7%）**。该结果仅描述这份小型固定集，不代表医疗答案准确率或真实用户泛化能力。
-
-已发现失败案例：`感冒适合哪些食物` 预期命中推荐食物，当前未生成查询，表明规则对表达方式仍然敏感。案例保留在固定集中，便于后续比较修复前后结果。
-
-- [固定问句与预期](tests/evaluation_cases.json)
-- [逐条评估结果](docs/evaluation_results.json)
-- [真实测试输出](docs/test_output.txt) · [评估输出](docs/evaluation_output.txt)
-
-Neo4j 首次导入、重复导入和真实问答尚未完成集成验证；当前没有端到端答案质量、并发吞吐或延迟基准。集成验收应在专用空库导入两次，核对节点与关系计数，再执行三类问答并与数据记录比对。
-
-## 运行效果与快速启动
-
-### 离线运行截图
-
-下图为本地验证报告的浏览器截图，内容来自本次真实运行的单元测试、固定问句评估和分类至 Cypher 的查询计划输出。该图记录 v1.0 基线的可复现离线处理结果，未连接 Neo4j；后续版本的独立验证结果见 [版本验证记录](docs/version_verification.md)。
-
-![离线验证报告：测试、固定集评估与真实查询计划](docs/images/offline-report.png)
-
-[打开 v1.0 运行报告](docs/run-report.html) · [查看基线查询计划](docs/query_plan_output.txt)
-
-后续版本的真实离线运行记录如下；扩展查询使用实际规则和词典，BERT 路由使用 mock 意图编号，模型推理和实库问答尚未执行。
-
-![后续版本离线验证：10 项测试与扩展查询](docs/images/version-report.png)
-
-[版本验证记录](docs/version_verification.md) · [扩展查询输出](docs/version_query_output.txt)
-
-### 安装与配置
-
-下载或克隆后进入仓库根目录。以下为 PowerShell 命令；使用前准备好 Neo4j 5.x 服务和专用空数据库。
-
-```powershell
-cd medical-knowledge-graph
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-
-$env:NEO4J_URI = 'bolt://localhost:7687'
-$env:NEO4J_USER = 'neo4j'
-$env:NEO4J_PASSWORD = '填写你自己的数据库密码'
-```
-
-未设置密码时程序会明确报错；URI 和用户名的默认值分别是 `bolt://localhost:7687` 和 `neo4j`。`.env.example` 仅为变量说明，程序不会自动加载其中内容。若 PowerShell 限制激活脚本，可直接使用 `.\.venv\Scripts\python.exe` 代替后续命令中的 `python`。
-
-### 构建图谱并启动问答
-
-在同一个已设置环境变量的终端中执行：
-
-```powershell
-python red_spider\build_medicalgraph.py
-python red_spider\chatbot.py
-```
-
-建图脚本向指定数据库写入数据，不清空已有数据；已有同名重复节点可能使唯一约束创建失败。导入出错后先查看错误信息，排查连接、权限或数据问题再重跑。
-
-问答启动后输入“感冒有什么症状”“感冒吃什么”“感冒用什么药”。输入 `q` 或按 Ctrl+C 退出，程序关闭数据库客户端连接；Neo4j 服务单独管理。
-
-可在 Neo4j Browser 执行以下语句检查某个疾病的关系：
-
-```cypher
-MATCH (d:Disease {name: '感冒'})-[r]->(n)
-RETURN d, r, n LIMIT 50;
-```
-
-### 常见启动问题
-
-| 现象 | 排查方式 |
-| --- | --- |
-| 提示设置 `NEO4J_PASSWORD` | 在运行程序的同一终端设置环境变量 |
-| 无法连接或认证失败 | 检查服务是否启动、URI、Bolt 端口和账号密码 |
-| 创建约束失败 | 检查账号建约束权限，以及库内是否已有同名重复节点 |
-| 识别到疾病却没有回答 | 分别检查分类结果、查询意图、图谱是否导入及实体名称是否一致 |
+数据库交互测试使用 mock；记录见 [verification.md](docs/verification.md)。未完成新导入脚本的真实空库首次/重复导入验证，不声称性能、答案准确率或部署效果。
 
 ## 项目目录
 
 ```text
-medical-knowledge-graph/
+qingnang/
 ├── README.md
-├── AGENTS.md                       # 开发约定
+├── AGENTS.md
 ├── requirements.txt
 ├── .env.example
-├── .gitignore
-├── red_spider/
-│   ├── build_medicalgraph.py        # 数据解析与图谱写入
-│   ├── question_classifier.py      # 实体识别与规则分类
-│   ├── question_parser.py          # 参数化查询计划
-│   ├── answer_search.py            # 数据库访问与答案整理
-│   ├── chatbot.py                  # 命令行交互
-│   ├── config.py                   # 环境变量配置
-│   ├── data/medical.json           # 完整医疗数据
-│   └── dict/                       # 疾病、症状、食物、药品词典
-├── tests/
-│   ├── test_project.py             # 单元测试
-│   ├── evaluation_cases.json       # 固定问句集
-│   ├── evaluate.py                 # v1.0 离线评估入口
-│   └── test_versions.py            # 后续版本与数据验证
-├── versions/
-│   ├── v1.1/                       # 扩展图谱、规则、Flask、模型回退
-│   └── v2.0/                       # BERT、训练数据、ONNX、服务接口
-└── docs/                           # 来源、统计、分版验证与运行图
+├── qingnang/
+│   ├── build_medicalgraph.py  # 完整扩展图谱解析、预览与导入
+│   ├── query_graph.py         # 白名单结构化只读查询
+│   ├── grounded_answer.py    # 单次检索 + 模型整理回答
+│   ├── verify_graph.py       # 全量源实体与关系覆盖核查
+│   ├── config.py             # 环境变量配置
+│   └── data/medical.json     # 原始数据
+├── tests/test_graph_only.py
+└── docs/                     # 来源、统计、版本、截图、Cypher 与验证
 ```
 
-## 工程迭代
+## 工程迭代与版本
 
-以下为当前独立项目的整理与验证记录，均发生于 2026-10-31。
+当前独立项目标记为 **检索增强版 1.1.0**，版本号表示本次收敛后的交付范围。其建图代码继承原 v1.1 的完整扩展模型，不等于原四类实体的基础 v1.0。
 
-| 轮次 | 变化 | 验证与结果 |
+原 v2.0 主要增加 BERT 分类、训练、ONNX 和服务入口，复用 v1.1 建图。没有独立的“2.0 专属关系”。本项目移除了历史聊天、意图分类、训练数据和 Web 对话接口；按新的需求新增一个独立、可选的单次检索增强 API 入口。
+
+| 日期/阶段 | 实际变化 | 验证 |
 | --- | --- | --- |
-| 第 1 轮：基础模块与运行修正 | 整理建图、分类、解析和搜索模块；修复路径与搜索循环问题；引入参数查询、环境变量和关系合并 | 5 项离线测试、代码编译及数据哈希校验通过 |
-| 第 2 轮：结构和启动统一 | 统一 `red_spider/` 下的代码、数据、词典；同步测试与命令，精简目录 | 从仓库根目录及外部目录运行测试通过，完整数据路径验证通过 |
-| 第 3 轮：可展示、可复现的验证 | 完善架构、技术选型、启动排障；新增固定问句评估、原始运行日志和报告截图 | 单元测试 5/5；固定问句意图集合精确匹配 11/12，保留失败案例 |
-| 第 4 轮：完整版本整理 | 纳入 v1.1 扩展图谱、v2.0 BERT/服务代码及完整分类数据；补齐分版说明、密钥隔离、路径修正及模型资产恢复 | 分版结果见 [版本验证记录](docs/version_verification.md)，未将源文件存在视为功能已验收 |
-
-后续继续记录具体改动、验证范围和结果；Neo4j 与真实模型集成、答案正确性和性能仍待验证。
+| 2026-10-31 至 2026-11-01，收敛前 | 完整数据及扩展模型提取，参数化查询、配置隔离，规则查询修复 | 当时有25项旧范围测试；包含现已移除功能，不作为本版测试成绩 |
+| 2026-11-01，图谱版1.0.0（上一阶段） | 移除对话与模型模块；统一扩展构图、只读查询、计划展示、重复节点预检和数据库名称配置 | 本版验证单独记录于 docs/verification.md |
 
 ## 已知限制
 
-- **表达覆盖有限**：分类基于词典和规则，对同义表达、口语和错别字不够稳健；固定集已保留一个食物查询改写失败案例。
-- **版本边界**：v1.0 仅支持三类基础查询；v1.1 已整理扩展图谱、检查、科室与反查代码，v2.0 已整理模型分类和接口代码，详见分版验收状态。各版均未实现可靠的跨轮指代与多轮上下文。
-- **多疾病回答待完善**：搜索器对同一意图的结果统一整理，多个疾病同时出现时缺少可靠的分组展示；当前示例聚焦单一疾病。
-- **数据质量依赖来源**：词典与数据尚无自动同步机制；字段格式、重复记录和过时内容仍需专门治理。模板回答最多展示 10 项，当前没有分页。
-- **导入能力边界**：数据一次性载入内存；多批事务不提供整次导入回滚，不自动清理旧库已有重复关系，也没有删除同步机制。
-- **验证边界**：尚未完成真实数据库集成、端到端答案评估、负载测试和线上部署验证；离线结果不能外推为生产可用性。
-- **使用边界**：医疗信息检索不能替代专业诊断或用药建议。
+- 当前旧库少一类实体和五组关系，且 Disease 数量高于源数据去重数量；截图无法判断每个重复节点和缺失关系的具体原因。
+- 导入是多批事务，失败可能留下部分数据；不提供整次回滚或自动旧库去重，不删除不再出现在数据源中的记录。
+- 同名疾病源记录合并到一个节点，属性按数据文件顺序更新，后出现的属性可覆盖前值；尚无字段级冲突治理。
+- 部分数据有历史拼写如 recommand_drug、command_drug、acompany_with，保留以兼容已有实例。
+- 生产商名称解析沿用源字段的括号拆分逻辑，真实业务含义和数据质量需独立核验。
+- 不实现症状到药物的诊疗推断。问题可为自然语言，但检索类型及实体仍需显式提供；不支持自由问句自动路由和多轮对话。
+- 模型依据约束通过提示实现，不能保证完全无幻觉；请结合输出的原始记录核对。调用模型会将当前问题和选定检索记录发送到配置的服务商。
+- 查询采用固定上限，未提供分页、访问鉴权或性能基准。读取全库结构统计可能耗时。
+- 医疗关联记录不构成诊断或处方。
 
 ## 数据来源与许可
 
-数据来自本项目已有的 `medical.json` 和四份实体词典，原样保留；数据文件为 JSON Lines，大小 47,138,917 字节。[来源清单](docs/source_manifest.json)保留原文件路径、大小和 SHA-256，[数据统计](docs/data_statistics.json)记录去重结果。
+数据来自已有项目保存的 medical.json（JSON Lines，47,138,917字节），保持原始字节。[来源清单](docs/source_manifest.json)记录 SHA-256，[扩展数据统计](docs/version_data_statistics.json)记录离线实体与关系计数。
 
-原始代码与数据的公开许可尚未确认，项目未自行附加开放许可证；对外再分发前需确认授权和署名要求。
+原始代码和数据的公开许可尚未确认，本项目未自行附加开放许可证；公开再分发前应确认授权和署名要求。
+
+
+## v1.1 完整数据补齐与模型检索增强（2026-11-01）
+
+### 补齐旧库的全部节点与关系
+
+先备份数据库，在已设置 Neo4j 环境变量的终端执行：
+
+```powershell
+python qingnang/build_medicalgraph.py --execute --complete-existing
+python qingnang/verify_graph.py
+```
+
+补齐模式处理完整7类节点、11组关系，不局限于当前缺少的5组。保留旧库同名节点和旧关系；同名实体以 elementId 文本排序的首个节点作为新写入关系的固定端点，补充该疾病节点的源属性。同名节点不会自动合并，旧数据仍可查询到；这不是去重迁移。没有重复名称的标签建立唯一约束，有重复名称的标签跳过该约束。模式只适用于单进程导入，不保证并发写入安全。
+
+执行采用多批事务，失败后可能已经部分写入。已有疾病属性可能被源数据同名字段更新；导入前备份。数据重复名称的属性按源文件顺序覆盖。
+
+verify_graph.py 将原始数据中的每个实体名称和每个关系端点名称对与数据库逐批比对。所有组 missing 为0才返回 complete:true，缺少时退出码为1。此验证检查存在性，不检查重复数量、字段值或医学有效性。
+
+### 模型 API 配置
+
+兼容 Chat Completions 的 HTTPS 接口。填入自己的地址和模型名，API Key在本地隐藏输入，不写入源码：
+
+```powershell
+$env:LLM_BASE_URL = '填写兼容接口根地址，通常以/v1结尾'
+$env:LLM_MODEL = '填写服务商提供的模型名'
+$modelKey = Read-Host '模型 API Key' -AsSecureString
+$env:LLM_API_KEY = [System.Net.NetworkCredential]::new('', $modelKey).Password
+python qingnang/grounded_answer.py --operation foods --name 感冒 --question '感冒吃点什么？'
+```
+
+LLM_BASE_URL不包含 /chat/completions 后缀，程序会添加该路径。接口依据 [Chat Completions官方文档](https://api-docs.deepseek.com/api/create-chat-completion/) 实现，但不绑定供应商或固定模型名。HTTP错误和超时明确报错，不自动重试以免重复计费。
+
+入口只执行一次。返回 answer、retrieval（包含Cypher、参数和原始记录）、model_called。没有检索记录时不调用模型。模型收到问题和当前查询的有限条数记录，不会收到数据库密码或整个原始数据文件。药品答案展示数据库记录，不据此推导症状处方和剂量。
+
+### 本轮验证状态
+
+13项单元测试通过，覆盖模型请求构造、检索依据保留、空结果不调用模型、配置缺失、旧库补齐路径和全量覆盖核查。测试使用数据库/HTTP替身，未消耗真实API额度。本机工具环境没有Neo4j密码及模型Key，实际数据库导入和真实模型联调尚未执行。文件修改仍在D盘副本，E盘和GitHub尚未同步。
